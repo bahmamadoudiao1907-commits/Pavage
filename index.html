@@ -1,0 +1,1121 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pavage</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700&family=Unbounded:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: one centered column; screens (menu, levels, rewards, game) swap inside it. Single dark look by choice. */
+:root {
+  --bg: #191c36;
+  --board: #232850;
+  --cell: #2d3463;
+  --slot: #1f2347;
+  --ink: #f2f0ff;
+  --muted: #9ba1d6;
+  --accent: #ffd166;
+  --on-accent: #1b1630;
+  --good: #51cf66;
+  --c0: #ff6b6b;
+  --c1: #ffa94d;
+  --c2: #ffd43b;
+  --c3: #51cf66;
+  --c4: #22b8cf;
+  --c5: #5c7cfa;
+  --c6: #cc5de8;
+  --c7: #a5d8ff;
+  --font-display: 'Unbounded', system-ui, sans-serif;
+  --font-body: 'Manrope', system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  padding-block: 14px 22px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+.app { width: 100%; max-width: 440px; min-width: 0; }
+.screen { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+h1 { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: 0.02em; line-height: 1; }
+h2 { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 18px; line-height: 1.2; }
+.lab { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.val { font-family: var(--font-display); font-weight: 500; font-size: 22px; line-height: 1; font-variant-numeric: tabular-nums; }
+.val.bump { animation: bump 0.25s ease-out; }
+@keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.18); color: var(--accent); } 100% { transform: scale(1); } }
+.muted { color: var(--muted); }
+
+.btn {
+  font: inherit; font-weight: 700;
+  background: var(--accent); color: var(--on-accent);
+  border: 0; border-radius: 12px; padding: 12px 22px; cursor: pointer;
+}
+.btn:focus-visible, .icon:focus-visible, .tile:focus-visible, .lv:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.btn.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--cell); padding: 10px 16px; }
+.btn[disabled] { opacity: 0.45; cursor: default; }
+.icon {
+  font: inherit; font-weight: 700; font-size: 13px; color: var(--muted);
+  background: transparent; border: 0; padding: 8px 4px; cursor: pointer;
+}
+
+/* Menu */
+.hero { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; }
+.hero h1 { font-size: 40px; letter-spacing: 0.01em; }
+.hero p { margin: 0; color: var(--muted); }
+.tile {
+  font: inherit; color: var(--ink); text-align: left; cursor: pointer;
+  background: var(--board); border: 0; border-radius: 18px; padding: 18px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.tile .t { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.tile .t b { font-family: var(--font-display); font-weight: 700; font-size: 17px; }
+.tile .t span { color: var(--muted); font-size: 13px; }
+.tile .art { flex: none; display: flex; align-items: center; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+/* Game */
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.chip {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--accent); background: var(--board); padding: 6px 12px; border-radius: 99px;
+}
+.hud { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.stat { display: flex; flex-direction: column; gap: 4px; }
+.stat.r { align-items: flex-end; }
+
+.boardwrap { position: relative; }
+#board {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 3px;
+  padding: 8px;
+  background: var(--board);
+  border-radius: 18px;
+}
+.cell { width: 100%; aspect-ratio: 1; border-radius: 22%; background: var(--cell); min-width: 0; }
+.cell.filled {
+  background: var(--c);
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.22), inset 0 2px 0 rgba(255, 255, 255, 0.3);
+}
+.cell.ice {
+  background: linear-gradient(135deg, #e7f5ff 0%, #a5d8ff 55%, #74c0fc 100%);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.65), inset 0 -3px 0 rgba(0, 60, 120, 0.25);
+}
+.cell.ghost { background: var(--c); opacity: 0.55; }
+.cell.hint { box-shadow: inset 0 0 0 2px var(--accent); }
+.cell.clearing { animation: pop 0.3s ease-in forwards; }
+@keyframes pop {
+  0% { transform: scale(1); filter: brightness(1); opacity: 1; }
+  40% { transform: scale(1.1); filter: brightness(1.7); opacity: 1; }
+  100% { transform: scale(0.2); opacity: 0; }
+}
+
+.over {
+  position: absolute; inset: 0; z-index: 5;
+  background: rgba(25, 28, 54, 0.92);
+  border-radius: 18px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  text-align: center; padding: 14px;
+}
+.over .final { font-family: var(--font-display); font-size: 32px; font-variant-numeric: tabular-nums; color: var(--accent); }
+.over .note { margin: 0; color: var(--muted); max-width: 30ch; line-height: 1.4; }
+.over .note b { color: var(--good); }
+.btns { display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 260px; }
+
+.status { margin: 0; text-align: center; color: var(--muted); font-weight: 700; min-height: 1.4em; }
+
+#tray { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; --ts: 18px; }
+.slot {
+  height: calc(var(--ts) * 5 + 8px + 12px);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--slot); border-radius: 14px;
+  touch-action: none; cursor: grab; min-width: 0;
+}
+.slot.dim .pgrid { opacity: 0.3; filter: grayscale(0.7); }
+.slot.lifted .pgrid { opacity: 0.25; }
+.slot.empty { cursor: default; }
+.pgrid { display: grid; }
+.pgrid .cell { border-radius: 24%; }
+.pgrid.float { position: fixed; top: 0; left: 0; pointer-events: none; z-index: 50; will-change: transform; filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.35)); }
+.spark { position: fixed; width: 8px; height: 8px; border-radius: 2px; pointer-events: none; z-index: 60; }
+.poptext {
+  position: absolute; left: 0; right: 0; top: 38%; text-align: center; pointer-events: none; z-index: 4;
+  font-family: var(--font-display); font-weight: 700; font-size: 26px; color: var(--accent);
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+}
+
+.foot { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.banner {
+  height: 50px; border-radius: 10px; border: 1.5px dashed var(--cell);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
+}
+
+/* Levels */
+.lvgrid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.lv {
+  font: inherit; color: var(--ink); cursor: pointer; border: 0;
+  background: var(--board); border-radius: 14px; aspect-ratio: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-family: var(--font-display); font-weight: 500; font-size: 16px;
+}
+.lv small { font-family: var(--font-body); font-size: 10px; letter-spacing: 1px; color: var(--accent); min-height: 12px; }
+.lv[disabled] { opacity: 0.3; cursor: default; }
+.lv.cur { box-shadow: inset 0 0 0 2px var(--accent); }
+
+/* Gems and tournament */
+.wallet { background: var(--board); border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 8px; }
+.wallet .big { font-family: var(--font-display); font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--c7); }
+.meter { display: flex; flex-direction: column; gap: 6px; }
+.meter .top { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; }
+.meter .top span:last-child { font-variant-numeric: tabular-nums; }
+.track { height: 8px; border-radius: 99px; background: var(--cell); overflow: hidden; }
+.fill { height: 100%; background: var(--good); border-radius: 99px; transition: width 0.3s; }
+.rules { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.demo { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.lb { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.lb li { display: flex; align-items: center; gap: 10px; background: var(--board); border-radius: 12px; padding: 10px 14px; }
+.lb .pos { width: 22px; font-family: var(--font-display); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.lb .nm { flex: 1; min-width: 0; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb .sc { font-family: var(--font-display); font-size: 14px; font-variant-numeric: tabular-nums; }
+.lb .prize { font-size: 12px; color: var(--good); font-weight: 700; }
+.lb li.me { box-shadow: inset 0 0 0 2px var(--accent); }
+.pool { background: var(--board); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+.pool .big { font-family: var(--font-display); font-size: 24px; font-weight: 700; color: var(--accent); }
+
+/* Ads (demo) and toast */
+.ad {
+  position: fixed; inset: 0; z-index: 100;
+  background: linear-gradient(160deg, #3b2f8f, #12384f);
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.ad-card { width: 100%; max-width: 360px; display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; }
+.ad-tag { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.7); }
+.ad-art { width: 100%; aspect-ratio: 16 / 10; border-radius: 16px; background: rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 20px; padding: 16px; }
+.ad-count { font-family: var(--font-display); font-size: 40px; font-variant-numeric: tabular-nums; }
+.toast {
+  position: fixed; left: 50%; top: max(14px, env(safe-area-inset-top, 0px)); transform: translateX(-50%);
+  background: var(--ink); color: var(--on-accent); font-weight: 700; padding: 10px 16px; border-radius: 99px;
+  z-index: 120; max-width: 90vw; text-align: center; font-size: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cell.clearing { animation: none; opacity: 0; }
+  .val.bump { animation: none; }
+}
+
+[hidden]{display:none!important}
+body{margin:0}
+html{-webkit-text-size-adjust:100%}
+</style>
+</head>
+<body>
+
+
+<main class="app">
+
+  <section class="screen" id="menu">
+    <div class="hero">
+      <h1>Pavage</h1>
+      <p>Pose les blocs, complète les lignes, fais monter le score.</p>
+    </div>
+    <button class="tile" id="goClassic" type="button">
+      <div class="t"><b>Classique</b><span id="mClassic">Infini, la difficulté monte avec ton score</span></div>
+      <div class="art" id="artClassic"></div>
+    </button>
+    <button class="tile" id="goAdv" type="button">
+      <div class="t"><b>Aventure</b><span id="mAdv">Niveau 1</span></div>
+      <div class="art" id="artAdv"></div>
+    </button>
+    <button class="tile" id="goRew" type="button">
+      <div class="t"><b>Gemmes et tournoi</b><span id="mRew">0 gemme</span></div>
+      <div class="art" id="artRew"></div>
+    </button>
+    <div class="row">
+      <button class="icon sndbtn" type="button">Son</button>
+    </div>
+    <div class="banner">Bannière publicitaire · démo</div>
+  </section>
+
+  <section class="screen" id="levels" hidden>
+    <div class="bar">
+      <button class="icon" data-menu type="button">‹ Menu</button>
+      <span class="chip">Aventure</span>
+      <span></span>
+    </div>
+    <p class="muted" style="margin:0">Choisis un niveau. Chaque réussite en débloque un nouveau.</p>
+    <div class="lvgrid" id="lvgrid"></div>
+    <div class="banner">Bannière publicitaire · démo</div>
+  </section>
+
+  <section class="screen" id="rewards" hidden>
+    <div class="bar">
+      <button class="icon" data-menu type="button">‹ Menu</button>
+      <span class="chip">Gemmes et tournoi</span>
+      <span></span>
+    </div>
+    <div class="wallet">
+      <span class="lab">Mes gemmes</span>
+      <span class="big" id="gemsBig">0</span>
+      <span class="muted">Utilise-les pour continuer une partie, changer tes pièces ou gagner 5 coups.</span>
+    </div>
+    <div class="meter">
+      <div class="top"><span>Pubs comptées aujourd'hui</span><span id="mDay"></span></div>
+      <div class="track"><div class="fill" id="fDay"></div></div>
+    </div>
+    <ul class="rules" id="rules"></ul>
+    <div class="foot">
+      <button class="btn" id="watchAd" type="button">Regarder une pub</button>
+    </div>
+
+    <h2>Tournoi de la semaine</h2>
+    <div class="pool">
+      <span class="lab">Cagnotte (démo)</span>
+      <span class="big" id="poolAmt"></span>
+      <span class="muted" id="poolSplit"></span>
+    </div>
+    <ol class="lb" id="lb"></ol>
+    <p class="demo" id="demoNote">Le classement se base sur ton meilleur score Classique de la semaine. Les prix ne dépendent pas des pubs vues. Ici, la cagnotte et les autres joueurs sont des exemples : le vrai classement demande la version connectée.</p>
+  </section>
+
+  <section class="screen" id="game" hidden>
+    <div class="bar">
+      <button class="icon" data-menu type="button">‹ Menu</button>
+      <span class="chip" id="chip">Difficulté 1</span>
+      <button class="icon sndbtn" type="button">Son</button>
+    </div>
+    <div class="hud">
+      <div class="stat"><span class="lab" id="l1">Score</span><span class="val" id="v1">0</span></div>
+      <div class="stat r"><span class="lab" id="l2">Record</span><span class="val" id="v2">0</span></div>
+    </div>
+    <div class="boardwrap" id="bw">
+      <div id="board" aria-label="Grille de jeu 8 par 8"></div>
+      <div class="over" id="over" hidden>
+        <h2 id="ovTitle"></h2>
+        <div class="final" id="final"></div>
+        <p class="note" id="note"></p>
+        <div class="btns" id="ovBtns"></div>
+      </div>
+    </div>
+    <p class="status" id="status" aria-live="polite"></p>
+    <div id="tray">
+      <div class="slot" data-i="0"></div>
+      <div class="slot" data-i="1"></div>
+      <div class="slot" data-i="2"></div>
+    </div>
+    <div class="foot">
+      <button class="btn quiet" id="reroll" type="button">Changer les pièces</button>
+    </div>
+    <div class="banner">Bannière publicitaire · démo</div>
+  </section>
+</main>
+
+<div class="ad" id="ad" hidden>
+  <div class="ad-card">
+    <span class="ad-tag">Publicité · démo</span>
+    <div class="ad-art">Ici s'afficherait une vraie vidéo publicitaire</div>
+    <div class="ad-count" id="adCount">5</div>
+    <button class="btn" id="adClose" type="button" hidden>Récupérer</button>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- Réglages (à ajuster avec les vraies données) ---------- */
+  var CFG = {
+    adsPerGem: 3,        // pubs vues en entier pour gagner 1 gemme
+    dailyAdCap: 10,      // pubs qui donnent des gemmes, par jour
+    minScore: 4000,      // score Classique qui donne des gemmes
+    scoreGems: 2,        // gemmes pour ce score
+    bonusPer: 1,         // gemme en plus par tranche de 2000 points au-dessus du minimum
+    bonusCap: 3,
+    maxScoreGemsPerDay: 6, // plafond de gemmes de score par jour
+    costRevive: 8,       // continuer une partie Classique
+    costReroll: 3,       // changer les trois pièces
+    costMoves: 6,        // +5 coups en Aventure
+    pool: 50000,         // cagnotte d'exemple du tournoi (FCFA), affichée en démo seulement
+    split: [50, 30, 20]  // répartition entre les 3 premiers (%)
+  };
+  var N = 8, COLORS = 7, TOTAL_LEVELS = 45;
+  var DEMO_PLAYERS = [['Aïcha', 4820], ['Koffi', 4310], ['Mariam', 3950], ['Yao', 3120], ['Awa', 2760]];
+
+  /* ---------- Pièces ---------- */
+  var BASE = [
+    [[1]],
+    [[1, 1]],
+    [[1, 1, 1]],
+    [[1, 1, 1, 1]],
+    [[1, 1, 1, 1, 1]],
+    [[1, 1], [1, 1]],
+    [[1, 1, 1], [1, 1, 1], [1, 1, 1]],
+    [[1, 1, 1], [1, 1, 1]],
+    [[1, 0], [1, 1]],
+    [[1, 0, 0], [1, 0, 0], [1, 1, 1]],
+    [[1, 0], [1, 0], [1, 1]],
+    [[1, 1, 1], [0, 1, 0]],
+    [[0, 1, 1], [1, 1, 0]],
+    [[1, 1, 0], [0, 1, 1]]
+  ];
+  var WEIGHTS = [0.6, 1, 1, 0.8, 0.6, 1, 0.6, 0.9, 1.2, 0.7, 1.1, 1, 0.9, 0.9];
+  /* Plus la difficulté monte, plus les pièces encombrantes sortent, moins les petites. */
+  var HARD = [-0.15, -0.1, -0.05, 0.05, 0.15, 0, 0.2, 0.1, -0.05, 0.2, 0.1, 0.1, 0.15, 0.15];
+
+  function rot(m) {
+    var R = m.length, C = m[0].length, out = [];
+    for (var c = 0; c < C; c++) {
+      var row = [];
+      for (var r = R - 1; r >= 0; r--) row.push(m[r][c]);
+      out.push(row);
+    }
+    return out;
+  }
+  function keyOf(m) { return m.map(function (r) { return r.join(''); }).join('/'); }
+  var FAMILIES = BASE.map(function (b) {
+    var seen = {}, list = [], m = b;
+    for (var i = 0; i < 4; i++) {
+      var k = keyOf(m);
+      if (!seen[k]) { seen[k] = 1; list.push(m); }
+      m = rot(m);
+    }
+    return list;
+  });
+  function cellsOf(m) {
+    var a = [];
+    m.forEach(function (row, r) { row.forEach(function (v, c) { if (v) a.push([r, c]); }); });
+    return a;
+  }
+  function rand(n) { return Math.floor(Math.random() * n); }
+  function randomPiece(d) {
+    var ws = WEIGHTS.map(function (w, i) { return Math.max(0.08, w * (1 + d * HARD[i])); });
+    var total = ws.reduce(function (a, b) { return a + b; }, 0);
+    var x = Math.random() * total, f = 0;
+    for (; f < ws.length - 1; f++) { if (x < ws[f]) break; x -= ws[f]; }
+    var fam = FAMILIES[f];
+    var m = fam[rand(fam.length)];
+    return { m: m, cells: cellsOf(m), rows: m.length, cols: m[0].length, color: rand(COLORS) };
+  }
+
+  /* ---------- Sauvegarde ---------- */
+  function today() { return new Date().toISOString().slice(0, 10); }
+  function weekKey() {
+    var d = new Date(), start = new Date(d.getFullYear(), 0, 1);
+    var w = Math.ceil(((d - start) / 86400000 + start.getDay() + 1) / 7);
+    return d.getFullYear() + '-S' + w;
+  }
+  var S = { best: 0, gems: 0, adsToday: 0, day: today(), week: weekKey(), weekBest: 0, unlocked: 1, stars: {}, sound: true };
+  try {
+    var raw = localStorage.getItem('pavage-save2');
+    if (raw) { var o = JSON.parse(raw); for (var k in o) S[k] = o[k]; }
+  } catch (e) {}
+  function save() { try { localStorage.setItem('pavage-save2', JSON.stringify(S)); } catch (e) {} }
+  function rollDay() {
+    var t = today(), w = weekKey();
+    if (S.day !== t) { S.day = t; S.adsToday = 0; S.scoreGemsToday = 0; }
+    if (S.week !== w) { S.week = w; S.weekBest = 0; }
+    save();
+  }
+
+  /* ---------- Éléments ---------- */
+  function $(id) { return document.getElementById(id); }
+  var board = $('board'), tray = $('tray'), bw = $('bw');
+  var slots = Array.prototype.slice.call(tray.children);
+  var overEl = $('over'), statusEl = $('status');
+  var screens = { menu: $('menu'), levels: $('levels'), rewards: $('rewards'), game: $('game') };
+
+  function show(name) {
+    for (var k in screens) screens[k].hidden = (k !== name);
+    window.scrollTo(0, 0);
+  }
+
+  /* ---------- Son, vibration, effets ---------- */
+  var AC = null;
+  function ac() {
+    try {
+      if (!AC) { var C = window.AudioContext || window.webkitAudioContext; AC = new C(); }
+      if (AC.state === 'suspended') AC.resume();
+    } catch (e) {}
+    return AC;
+  }
+  function tone(f, t, d, type, v) {
+    if (!S.sound) return;
+    var a = ac(); if (!a) return;
+    try {
+      var o = a.createOscillator(), g = a.createGain(), s = a.currentTime + (t || 0);
+      o.type = type || 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, s);
+      g.gain.exponentialRampToValueAtTime(v || 0.12, s + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, s + d);
+      o.connect(g); g.connect(a.destination);
+      o.start(s); o.stop(s + d + 0.02);
+    } catch (e) {}
+  }
+  var SCALE = [523, 587, 659, 784, 880, 1047, 1175];
+  var sfx = {
+    place: function () { tone(300, 0, 0.08, 'triangle', 0.12); },
+    clear: function (n) { for (var i = 0; i < Math.min(n + 2, 7); i++) tone(SCALE[i], i * 0.06, 0.16, 'triangle', 0.13); },
+    up: function () { tone(440, 0, 0.12, 'square', 0.06); tone(660, 0.1, 0.18, 'square', 0.06); },
+    win: function () { [523, 659, 784, 1047].forEach(function (f, i) { tone(f, i * 0.1, 0.25, 'triangle', 0.14); }); },
+    lose: function () { [392, 330, 262].forEach(function (f, i) { tone(f, i * 0.14, 0.3, 'sawtooth', 0.07); }); }
+  };
+  function buzz(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
+  document.addEventListener('pointerdown', function () { if (S.sound) ac(); }, { passive: true });
+
+  function colorOf(v) { return getComputedStyle(document.documentElement).getPropertyValue('--c' + v).trim() || '#ffd166'; }
+  function spark(x, y, color, spread) {
+    var p = document.createElement('i');
+    p.className = 'spark';
+    p.style.left = x + 'px'; p.style.top = y + 'px'; p.style.background = color;
+    document.body.appendChild(p);
+    var ang = Math.random() * 6.283, dist = spread * (0.4 + Math.random());
+    var a = p.animate([
+      { transform: 'translate(0,0) scale(1) rotate(0deg)', opacity: 1 },
+      { transform: 'translate(' + Math.cos(ang) * dist + 'px,' + (Math.sin(ang) * dist + 20) + 'px) scale(0) rotate(180deg)', opacity: 0 }
+    ], { duration: 500 + Math.random() * 350, easing: 'cubic-bezier(.2,.7,.3,1)' });
+    a.onfinish = function () { p.remove(); };
+  }
+  function burst(x, y, color, count, spread) { for (var i = 0; i < count; i++) spark(x, y, color, spread || 70); }
+  function confetti() {
+    for (var i = 0; i < 12; i++) {
+      burst(Math.random() * window.innerWidth, 60 + Math.random() * 200, colorOf(rand(COLORS)), 6, 140);
+    }
+  }
+  function popText(text, size) {
+    var el = document.createElement('div');
+    el.className = 'poptext';
+    el.textContent = text;
+    if (size) el.style.fontSize = size + 'px';
+    bw.appendChild(el);
+    var a = el.animate([
+      { transform: 'translateY(10px) scale(0.6)', opacity: 0 },
+      { transform: 'translateY(-6px) scale(1.12)', opacity: 1, offset: 0.25 },
+      { transform: 'translateY(-60px) scale(1)', opacity: 0 }
+    ], { duration: 1100, easing: 'ease-out' });
+    a.onfinish = function () { el.remove(); };
+  }
+  function shake(power) {
+    if (!bw.animate) return;
+    var p = power || 5;
+    bw.animate([
+      { transform: 'translate(0,0)' }, { transform: 'translate(' + p + 'px,' + (-p / 2) + 'px)' },
+      { transform: 'translate(' + (-p) + 'px,' + (p / 2) + 'px)' }, { transform: 'translate(' + (p / 2) + 'px,0)' },
+      { transform: 'translate(0,0)' }
+    ], { duration: 280 });
+  }
+  var toastTimer = null;
+  function toast(t) {
+    var el = $('toast');
+    el.textContent = t; el.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.hidden = true; }, 2000);
+  }
+  function bump(el) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+  function setSoundLabels() {
+    Array.prototype.forEach.call(document.querySelectorAll('.sndbtn'), function (b) { b.textContent = S.sound ? 'Son activé' : 'Son coupé'; });
+  }
+  function plural(n, one, many) { return n + ' ' + (n > 1 ? many : one); }
+
+  /* ---------- Publicités ----------
+     Dans l'application Android, native-ads.js définit window.PavageNativeAds (vraies pubs AdMob).
+     Sans lui, une pub de démonstration de 5 secondes s'affiche. */
+  var adOpen = false;
+  function giveAdGems() {
+    rollDay();
+    if (S.adsToday < CFG.dailyAdCap) {
+      S.adsToday++; S.adProg = (S.adProg || 0) + 1;
+      if (S.adProg >= CFG.adsPerGem) { S.adProg = 0; S.gems++; toast('+1 gemme'); }
+      else toast('Pub ' + S.adProg + '/' + CFG.adsPerGem + ' pour la prochaine gemme');
+      save();
+      return true;
+    }
+    toast('Limite de pubs avec gemmes atteinte pour aujourd\'hui');
+    return false;
+  }
+  function showAd(kind, cb, onFail) {
+    if (window.PavageNativeAds && window.PavageNativeAds.show) {
+      adOpen = true;
+      window.PavageNativeAds.show(kind, function (ok) {
+        adOpen = false;
+        if (ok) { giveAdGems(); if (cb) cb(); }
+        else { toast('Pub indisponible, réessaie plus tard'); if (onFail) onFail(); }
+      });
+      return;
+    }
+    adOpen = true;
+    var el = $('ad'), count = $('adCount'), btn = $('adClose');
+    var secs = 5;
+    count.textContent = secs; btn.hidden = true;
+    el.hidden = false;
+    var iv = setInterval(function () {
+      secs--;
+      count.textContent = secs;
+      if (secs <= 0) { clearInterval(iv); count.textContent = 'Terminé'; btn.hidden = false; }
+    }, 1000);
+    btn.onclick = function () {
+      el.hidden = true; adOpen = false;
+      giveAdGems();
+      if (cb) cb();
+    };
+  }
+  /* Dépenser des gemmes, sinon regarder une pub */
+  function payOrAd(cost, fn) {
+    if (S.gems >= cost) { S.gems -= cost; save(); fn(); }
+    else showAd('rewarded', fn);
+  }
+  function costLabel(label, cost) { return S.gems >= cost ? label + ' · ' + plural(cost, 'gemme', 'gemmes') : label + ' · pub'; }
+
+  /* Toutes les 3 parties terminées (Classique ou Aventure, réussies ou ratées), une pub récompensée s'affiche. */
+  var gamesPlayed = 0;
+  function endGame(fn) {
+    gamesPlayed++;
+    if (gamesPlayed % 3 === 0) {
+      over = true;
+      setTimeout(function () { showAd('rewarded', fn, fn); }, 700);
+    } else {
+      fn();
+    }
+  }
+
+  /* ---------- État de jeu ---------- */
+  var mode = 'classic', lvl = null;
+  var grid, ice, pieces, score, linesTotal, iceLeft, iceTotal, movesLeft, streak, miss;
+  var busy = false, over = false, drag = null, usedRevive = false, usedMoves = false, rewardGiven = false, startBest = 0, curD = 0;
+  var cells = [], pad = 8, gap = 3, cellW = 40, pitch = 43, ts = 18;
+
+  for (var r0 = 0; r0 < N; r0++) {
+    cells[r0] = [];
+    for (var c0 = 0; c0 < N; c0++) {
+      var d0 = document.createElement('div');
+      d0.className = 'cell';
+      board.appendChild(d0);
+      cells[r0][c0] = d0;
+    }
+  }
+
+  function matrix(v) {
+    var g = [];
+    for (var r = 0; r < N; r++) { g[r] = []; for (var c = 0; c < N; c++) g[r][c] = v; }
+    return g;
+  }
+  function canFit(p, r, c) {
+    for (var i = 0; i < p.cells.length; i++) {
+      var rr = r + p.cells[i][0], cc = c + p.cells[i][1];
+      if (rr < 0 || cc < 0 || rr >= N || cc >= N || grid[rr][cc] !== null) return false;
+    }
+    return true;
+  }
+  function anyFit(p) {
+    for (var r = 0; r <= N - p.rows; r++)
+      for (var c = 0; c <= N - p.cols; c++)
+        if (canFit(p, r, c)) return true;
+    return false;
+  }
+  function findLines(g) {
+    var rows = [], cols = [], r, c;
+    for (r = 0; r < N; r++) {
+      var full = true;
+      for (c = 0; c < N; c++) if (g[r][c] === null) { full = false; break; }
+      if (full) rows.push(r);
+    }
+    for (c = 0; c < N; c++) {
+      var fullC = true;
+      for (r = 0; r < N; r++) if (g[r][c] === null) { fullC = false; break; }
+      if (fullC) cols.push(c);
+    }
+    return { rows: rows, cols: cols };
+  }
+  function diffNow() { return mode === 'classic' ? Math.min(10, Math.floor(score / 1200)) : lvl.d; }
+  function newSet() {
+    var set, d = diffNow();
+    for (var a = 0; a < 40; a++) {
+      set = [randomPiece(d), randomPiece(d), randomPiece(d)];
+      if (set.some(anyFit)) break;
+    }
+    return set;
+  }
+  function isEmpty() {
+    for (var r = 0; r < N; r++) for (var c = 0; c < N; c++) if (grid[r][c] !== null) return false;
+    return true;
+  }
+
+  function measure() {
+    var cs = getComputedStyle(board);
+    pad = parseFloat(cs.paddingLeft) || 0;
+    gap = parseFloat(cs.columnGap) || 0;
+    var inner = board.clientWidth - 2 * pad;
+    if (inner <= 0) return;
+    cellW = (inner - (N - 1) * gap) / N;
+    pitch = cellW + gap;
+    ts = Math.max(10, Math.floor(cellW * 0.46));
+    tray.style.setProperty('--ts', ts + 'px');
+  }
+  function buildPiece(p, size, g) {
+    var el = document.createElement('div');
+    el.className = 'pgrid';
+    el.style.gridTemplateColumns = 'repeat(' + p.cols + ',' + size + 'px)';
+    el.style.gridAutoRows = size + 'px';
+    el.style.gap = g + 'px';
+    for (var r = 0; r < p.rows; r++) {
+      for (var c = 0; c < p.cols; c++) {
+        var d = document.createElement('div');
+        if (p.m[r][c]) {
+          d.className = 'cell filled';
+          d.style.setProperty('--c', 'var(--c' + p.color + ')');
+        }
+        el.appendChild(d);
+      }
+    }
+    return el;
+  }
+  function render() {
+    for (var r = 0; r < N; r++) {
+      for (var c = 0; c < N; c++) {
+        var v = grid[r][c], el = cells[r][c];
+        el.className = 'cell' + (v === null ? '' : ' filled') + (ice[r][c] ? ' ice' : '');
+        if (v !== null) el.style.setProperty('--c', 'var(--c' + v + ')');
+      }
+    }
+  }
+  function renderTray() {
+    slots.forEach(function (slot, i) {
+      slot.innerHTML = '';
+      slot.className = 'slot';
+      var p = pieces[i];
+      if (!p) { slot.classList.add('empty'); return; }
+      slot.appendChild(buildPiece(p, ts, 2));
+      if (!anyFit(p)) slot.classList.add('dim');
+    });
+    $('reroll').textContent = costLabel('Changer les pièces', CFG.costReroll);
+  }
+  function setStatus(t) { statusEl.textContent = t; }
+
+  function objectiveText() {
+    if (lvl.kind === 'score') return 'Atteins ' + lvl.target + ' points';
+    if (lvl.kind === 'lines') return 'Efface ' + lvl.target + ' lignes ou colonnes';
+    return 'Brise toute la glace (' + lvl.target + ' blocs)';
+  }
+  function progress() {
+    if (lvl.kind === 'score') return score;
+    if (lvl.kind === 'lines') return linesTotal;
+    return iceTotal - iceLeft;
+  }
+  function baseMsg() { return mode === 'classic' ? 'Glisse une pièce sur la grille.' : objectiveText(); }
+
+  function hud() {
+    if (mode === 'classic') {
+      $('l1').textContent = 'Score'; $('v1').textContent = score;
+      $('l2').textContent = 'Record'; $('v2').textContent = S.best;
+      $('chip').textContent = 'Difficulté ' + (diffNow() + 1);
+    } else {
+      $('l1').textContent = 'Objectif'; $('v1').textContent = Math.min(progress(), lvl.target) + '/' + lvl.target;
+      $('l2').textContent = 'Coups'; $('v2').textContent = movesLeft;
+      $('chip').textContent = 'Niveau ' + lvl.n;
+    }
+  }
+  function addScore(v) {
+    score += v;
+    if (mode === 'classic') {
+      rollDay();
+      if (score > S.best) S.best = score;
+      if (score > S.weekBest) S.weekBest = score;
+      save();
+    }
+    hud();
+    bump($('v1'));
+  }
+
+  function clearPreview() {
+    for (var r = 0; r < N; r++)
+      for (var c = 0; c < N; c++) cells[r][c].classList.remove('ghost', 'hint');
+  }
+  function showPreview(t) {
+    clearPreview();
+    if (!t) return;
+    var p = drag.p, tmp = grid.map(function (row) { return row.slice(); });
+    p.cells.forEach(function (x) {
+      var rr = t.r + x[0], cc = t.c + x[1];
+      tmp[rr][cc] = p.color;
+      var el = cells[rr][cc];
+      el.classList.add('ghost');
+      el.style.setProperty('--c', 'var(--c' + p.color + ')');
+    });
+    var L = findLines(tmp);
+    L.rows.forEach(function (r) { for (var c = 0; c < N; c++) cells[r][c].classList.add('hint'); });
+    L.cols.forEach(function (c) { for (var r = 0; r < N; r++) cells[r][c].classList.add('hint'); });
+  }
+
+  /* ---------- Déroulé d'un coup ---------- */
+  function place(i, r, c) {
+    var p = pieces[i];
+    busy = true;
+    sfx.place();
+    p.cells.forEach(function (x) { grid[r + x[0]][c + x[1]] = p.color; });
+    pieces[i] = null;
+    if (mode === 'adventure') movesLeft--;
+    addScore(p.cells.length);
+    render(); renderTray();
+    var L = findLines(grid), n = L.rows.length + L.cols.length;
+    if (!n) { finish(0); return; }
+
+    var mark = matrix(false), list = [];
+    L.rows.forEach(function (rr) { for (var cc = 0; cc < N; cc++) mark[rr][cc] = true; });
+    L.cols.forEach(function (cc) { for (var rr = 0; rr < N; rr++) mark[rr][cc] = true; });
+    for (var rr = 0; rr < N; rr++) for (var cc = 0; cc < N; cc++) if (mark[rr][cc]) list.push([rr, cc]);
+    list.forEach(function (x) {
+      var el = cells[x[0]][x[1]];
+      el.classList.add('clearing');
+      var b = el.getBoundingClientRect();
+      burst(b.left + b.width / 2, b.top + b.height / 2, colorOf(grid[x[0]][x[1]]), 2, 60);
+    });
+    sfx.clear(n);
+    buzz(n > 1 ? [20, 30, 20] : 15);
+    if (n >= 2) shake(n >= 3 ? 8 : 4);
+    setTimeout(function () {
+      list.forEach(function (x) {
+        grid[x[0]][x[1]] = null;
+        if (ice[x[0]][x[1]]) { ice[x[0]][x[1]] = false; iceLeft--; }
+      });
+      linesTotal += n;
+      finish(n);
+    }, 300);
+  }
+
+  function finish(n) {
+    var msg = baseMsg();
+    if (n) {
+      streak++; miss = 0;
+      var mult = Math.max(1, streak), pts = 20 * n * n * mult;
+      addScore(pts);
+      msg = (n > 1 ? n + ' lignes' : '1 ligne') + ' · +' + pts + (mult > 1 ? ' · Combo ×' + mult : '');
+      popText('+' + pts, n >= 3 ? 34 : 26);
+      if (mult > 1) setTimeout(function () { popText('Combo ×' + mult, 20); }, 220);
+      if (isEmpty()) { addScore(300); msg = 'Grille vide ! +300'; popText('Grille vide !', 28); }
+    } else {
+      miss++;
+      if (miss >= 3) streak = 0;
+    }
+    render(); hud();
+
+    if (mode === 'classic') {
+      var nd = diffNow();
+      if (nd > curD) { curD = nd; popText('Difficulté ' + (nd + 1), 22); sfx.up(); bump($('chip')); }
+    } else if (progress() >= lvl.target) {
+      busy = false; endGame(levelComplete); return;
+    }
+
+    if (pieces.every(function (p) { return !p; })) pieces = newSet();
+    renderTray();
+    setStatus(msg);
+
+    var stuck = pieces.every(function (p) { return !p || !anyFit(p); });
+    if (mode === 'adventure' && movesLeft <= 0) { endGame(function () { levelFail('Plus de coups.'); }); }
+    else if (stuck) { if (mode === 'classic') endGame(classicOver); else endGame(function () { levelFail('Plus de place pour les pièces.'); }); }
+    busy = false;
+  }
+
+  /* ---------- Fin de partie ---------- */
+  function renderOver(cfg) {
+    over = true;
+    $('ovTitle').textContent = cfg.title;
+    $('final').textContent = cfg.big;
+    $('note').innerHTML = cfg.note || '';
+    var box = $('ovBtns');
+    box.innerHTML = '';
+    cfg.buttons.forEach(function (b) {
+      var el = document.createElement('button');
+      el.type = 'button';
+      el.className = 'btn' + (b.quiet ? ' quiet' : '');
+      el.textContent = b.label;
+      el.onclick = b.fn;
+      box.appendChild(el);
+    });
+    overEl.hidden = false;
+  }
+
+  function classicOver() {
+    sfx.lose();
+    var note = '', btns = [];
+    if (score > startBest && score > 0) note += 'Nouveau record !<br>';
+    if (score >= CFG.minScore) {
+      if (!rewardGiven) {
+        var bonus = Math.min(CFG.bonusCap, Math.floor((score - CFG.minScore) / 2000) * CFG.bonusPer);
+        rollDay();
+        var g = Math.min(CFG.scoreGems + bonus, Math.max(0, CFG.maxScoreGemsPerDay - (S.scoreGemsToday || 0)));
+        S.gems += g; S.scoreGemsToday = (S.scoreGemsToday || 0) + g; save(); rewardGiven = true;
+        if (g > 0) { confetti(); sfx.win(); note += '<b>+' + plural(g, 'gemme', 'gemmes') + ' pour ton score</b>'; }
+        else note += 'Plafond de gemmes de score atteint pour aujourd’hui.';
+      } else {
+        note += 'Gemmes de score déjà reçues pour cette partie.';
+      }
+    } else {
+      note += 'Atteins ' + CFG.minScore + ' points pour gagner des gemmes.';
+    }
+    if (!usedRevive) btns.push({ label: costLabel('Continuer', CFG.costRevive), fn: function () { payOrAd(CFG.costRevive, revive); } });
+    btns.push({ label: 'Rejouer', fn: startClassic });
+    btns.push({ label: 'Menu', quiet: true, fn: openMenu });
+    renderOver({ title: 'Partie terminée', big: score, note: note, buttons: btns });
+  }
+
+  function revive() {
+    usedRevive = true;
+    var counts = [];
+    for (var r = 0; r < N; r++) {
+      var n = 0;
+      for (var c = 0; c < N; c++) if (grid[r][c] !== null) n++;
+      counts.push([r, n]);
+    }
+    counts.sort(function (a, b) { return b[1] - a[1]; });
+    for (var i = 0; i < 3; i++) {
+      var rr = counts[i][0];
+      for (var cc = 0; cc < N; cc++) { grid[rr][cc] = null; if (ice[rr][cc]) { ice[rr][cc] = false; iceLeft--; } }
+    }
+    pieces = newSet();
+    over = false; busy = false;
+    overEl.hidden = true;
+    render(); renderTray(); hud();
+    popText('On continue !', 24);
+    setStatus(baseMsg());
+  }
+
+  /* ---------- Aventure ---------- */
+  function levelConfig(n) {
+    var kinds = ['score', 'lines', 'ice'];
+    var cfg = { n: n, kind: kinds[(n - 1) % 3], d: Math.min(7, Math.floor((n - 1) / 4)), pre: Math.min(22, 2 + n) };
+    if (cfg.kind === 'score') { cfg.target = 120 + 50 * n; cfg.moves = 24 + n; }
+    if (cfg.kind === 'lines') { cfg.target = 3 + Math.ceil(n * 0.6); cfg.moves = 14 + n; }
+    if (cfg.kind === 'ice') { cfg.ice = Math.min(22, 5 + n); cfg.pre = Math.min(14, n); cfg.moves = 20 + n; }
+    return cfg;
+  }
+  function prefill(count, isIce) {
+    var rc = [], cc = [], tries = 0, placed = 0, i;
+    for (i = 0; i < N; i++) { rc[i] = 0; cc[i] = 0; }
+    for (var r = 0; r < N; r++) for (var c = 0; c < N; c++) if (grid[r][c] !== null) { rc[r]++; cc[c]++; }
+    while (placed < count && tries < 800) {
+      tries++;
+      var rr = rand(N), c2 = rand(N);
+      if (grid[rr][c2] !== null || rc[rr] >= 5 || cc[c2] >= 5) continue;
+      grid[rr][c2] = isIce ? 7 : rand(COLORS);
+      ice[rr][c2] = !!isIce;
+      rc[rr]++; cc[c2]++; placed++;
+    }
+    return placed;
+  }
+
+  function baseReset() {
+    grid = matrix(null); ice = matrix(false);
+    score = 0; linesTotal = 0; iceLeft = 0; iceTotal = 0; streak = 0; miss = 0;
+    busy = false; over = false; usedRevive = false; usedMoves = false; rewardGiven = false; curD = 0;
+    startBest = S.best;
+    overEl.hidden = true;
+  }
+  function enterGame() {
+    show('game');
+    measure();
+    pieces = newSet();
+    render(); renderTray(); hud();
+    setStatus(baseMsg());
+  }
+  function startClassic() {
+    mode = 'classic'; lvl = null;
+    baseReset();
+    enterGame();
+  }
+  function startAdventure(n) {
+    mode = 'adventure';
+    lvl = levelConfig(n);
+    baseReset();
+    movesLeft = lvl.moves;
+    if (lvl.kind === 'ice') { iceTotal = prefill(lvl.ice, true); iceLeft = iceTotal; lvl.target = iceTotal; }
+    prefill(lvl.pre, false);
+    enterGame();
+    popText('Niveau ' + n, 26);
+  }
+
+  function levelComplete() {
+    sfx.win(); confetti(); buzz([30, 40, 30]);
+    var ratio = movesLeft / lvl.moves;
+    var stars = ratio >= 0.35 ? 3 : ratio >= 0.15 ? 2 : 1;
+    var firstTime = (S.stars[lvl.n] || 0) < 3;
+    if (stars > (S.stars[lvl.n] || 0)) S.stars[lvl.n] = stars;
+    if (lvl.n >= S.unlocked && lvl.n < TOTAL_LEVELS) S.unlocked = lvl.n + 1;
+    var note = 'Il te restait ' + plural(movesLeft, 'coup', 'coups') + '.';
+    if (stars === 3 && firstTime) { S.gems += 1; note += '<br><b>+1 gemme (3 étoiles)</b>'; }
+    save();
+    var n = lvl.n, btns = [];
+    if (n < TOTAL_LEVELS) btns.push({ label: 'Niveau suivant', fn: function () { startAdventure(n + 1); } });
+    btns.push({ label: 'Rejouer le niveau', quiet: true, fn: function () { startAdventure(n); } });
+    btns.push({ label: 'Niveaux', quiet: true, fn: openLevels });
+    renderOver({ title: 'Niveau ' + n + ' réussi', big: '★★★'.slice(0, stars) + '☆☆☆'.slice(0, 3 - stars), note: note, buttons: btns });
+  }
+  function levelFail(why) {
+    sfx.lose();
+    var n = lvl.n, btns = [];
+    if (!usedMoves) btns.push({ label: costLabel('+5 coups', CFG.costMoves), fn: function () {
+      payOrAd(CFG.costMoves, function () {
+        usedMoves = true; movesLeft += 5;
+        if (pieces.every(function (p) { return !p || !anyFit(p); })) revive();
+        else { over = false; overEl.hidden = true; render(); hud(); }
+      });
+    } });
+    btns.push({ label: 'Réessayer', fn: function () { startAdventure(n); } });
+    btns.push({ label: 'Niveaux', quiet: true, fn: openLevels });
+    renderOver({ title: 'Niveau raté', big: progress() + '/' + lvl.target, note: why, buttons: btns });
+  }
+
+  /* ---------- Écrans ---------- */
+  function miniArt(box, shapes) {
+    box.innerHTML = '';
+    shapes.forEach(function (s) {
+      var p = { m: s.m, rows: s.m.length, cols: s.m[0].length, color: s.c };
+      var el = buildPiece(p, 14, 2);
+      el.style.marginLeft = '6px';
+      box.appendChild(el);
+    });
+  }
+  function openMenu() {
+    over = false;
+    show('menu');
+    rollDay();
+    $('mClassic').textContent = S.best ? 'Record : ' + S.best + ' · difficulté progressive' : 'Infini, la difficulté monte avec ton score';
+    $('mAdv').textContent = 'Niveau ' + Math.min(S.unlocked, TOTAL_LEVELS) + ' sur ' + TOTAL_LEVELS;
+    $('mRew').textContent = plural(S.gems, 'gemme', 'gemmes') + ' · classement de la semaine';
+    miniArt($('artClassic'), [{ m: [[1, 1, 1], [0, 1, 0]], c: 5 }]);
+    miniArt($('artAdv'), [{ m: [[1, 0], [1, 1]], c: 1 }, { m: [[1, 1]], c: 3 }]);
+    miniArt($('artRew'), [{ m: [[1, 1], [1, 1]], c: 7 }]);
+    setSoundLabels();
+  }
+  function openLevels() {
+    over = false;
+    show('levels');
+    var g = $('lvgrid');
+    g.innerHTML = '';
+    for (var n = 1; n <= TOTAL_LEVELS; n++) {
+      (function (n) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'lv' + (n === S.unlocked ? ' cur' : '');
+        b.disabled = n > S.unlocked;
+        var st = S.stars[n] || 0;
+        b.innerHTML = n + '<small>' + (st ? '★★★'.slice(0, st) : '') + '</small>';
+        b.onclick = function () { startAdventure(n); };
+        g.appendChild(b);
+      })(n);
+    }
+  }
+  function money(v) { return String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' FCFA'; }
+  function openRewards() {
+    over = false;
+    rollDay();
+    show('rewards');
+    $('gemsBig').textContent = S.gems;
+    $('mDay').textContent = S.adsToday + '/' + CFG.dailyAdCap;
+    $('fDay').style.width = Math.min(100, (S.adsToday / CFG.dailyAdCap) * 100) + '%';
+    $('rules').innerHTML =
+      '<li>Regarde ' + CFG.adsPerGem + ' pubs en entier pour gagner 1 gemme (' + CFG.dailyAdCap + ' pubs comptées par jour).</li>' +
+      '<li>Fais ' + CFG.minScore + ' points ou plus en Classique pour ' + CFG.scoreGems + ' gemmes, plus ' + CFG.bonusPer + ' par tranche de 2000 points en plus (jusqu’à +' + CFG.bonusCap + '). Maximum ' + CFG.maxScoreGemsPerDay + ' gemmes de score par jour.</li>' +
+      '<li>Réussis un niveau d’Aventure avec 3 étoiles, une première fois, pour 1 gemme.</li>' +
+      '<li>Continuer ' + CFG.costRevive + ' gemmes · changer les pièces ' + CFG.costReroll + ' · +5 coups ' + CFG.costMoves + '. Sans gemmes, une pub fait l’affaire.</li>';
+    $('poolAmt').textContent = money(CFG.pool);
+    $('poolSplit').textContent = '1er ' + CFG.split[0] + ' % · 2e ' + CFG.split[1] + ' % · 3e ' + CFG.split[2] + ' %';
+    var rows = DEMO_PLAYERS.map(function (p) { return { n: p[0], s: p[1], me: false }; });
+    rows.push({ n: 'Toi', s: S.weekBest, me: true });
+    rows.sort(function (a, b) { return b.s - a.s; });
+    var lb = $('lb');
+    lb.innerHTML = '';
+    rows.forEach(function (row, i) {
+      var li = document.createElement('li');
+      if (row.me) li.className = 'me';
+      var prize = i < 3 ? '<span class="prize">' + money(Math.round(CFG.pool * CFG.split[i] / 100)) + '</span>' : '';
+      li.innerHTML = '<span class="pos">' + (i + 1) + '</span><span class="nm"></span>' + prize + '<span class="sc">' + row.s + '</span>';
+      li.querySelector('.nm').textContent = row.n + (row.me ? '' : ' (exemple)');
+      lb.appendChild(li);
+    });
+  }
+
+  /* ---------- Glisser-déposer ---------- */
+  function move(e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    var left = e.clientX - drag.w / 2;
+    var top = e.clientY - drag.h / 2 - drag.lift;
+    drag.el.style.transform = 'translate(' + left + 'px,' + top + 'px)';
+    var br = board.getBoundingClientRect();
+    var c = Math.round((left - (br.left + pad)) / pitch);
+    var r = Math.round((top - (br.top + pad)) / pitch);
+    var t = canFit(drag.p, r, c) ? { r: r, c: c } : null;
+    var same = (t && drag.target && t.r === drag.target.r && t.c === drag.target.c) || (!t && !drag.target);
+    drag.target = t;
+    if (!same) showPreview(t);
+  }
+  function end(e, cancel) {
+    if (!drag || e.pointerId !== drag.id) return;
+    var t = drag.target, i = drag.i;
+    drag.el.remove();
+    slots[i].classList.remove('lifted');
+    clearPreview();
+    render();
+    drag = null;
+    if (t && !cancel) place(i, t.r, t.c);
+  }
+  tray.addEventListener('pointerdown', function (e) {
+    if (busy || over || drag || adOpen) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    var slot = e.target.closest('.slot');
+    if (!slot) return;
+    var i = +slot.dataset.i, p = pieces[i];
+    if (!p) return;
+    e.preventDefault();
+    measure();
+    var el = buildPiece(p, cellW, gap);
+    el.classList.add('float');
+    var w = p.cols * cellW + (p.cols - 1) * gap;
+    var h = p.rows * cellW + (p.rows - 1) * gap;
+    el.style.width = w + 'px';
+    el.style.height = h + 'px';
+    document.body.appendChild(el);
+    drag = { i: i, p: p, el: el, w: w, h: h, id: e.pointerId, target: null,
+             lift: e.pointerType === 'mouse' ? 10 : Math.round(Math.max(56, h * 0.5 + 40)) };
+    try { slot.setPointerCapture(e.pointerId); } catch (err) {}
+    slot.classList.add('lifted');
+    move(e);
+  });
+  document.addEventListener('pointermove', move);
+  document.addEventListener('pointerup', function (e) { end(e, false); });
+  document.addEventListener('pointercancel', function (e) { end(e, true); });
+
+  /* ---------- Boutons ---------- */
+  $('goClassic').onclick = startClassic;
+  $('goAdv').onclick = openLevels;
+  $('goRew').onclick = openRewards;
+  Array.prototype.forEach.call(document.querySelectorAll('[data-menu]'), function (b) { b.onclick = openMenu; });
+  Array.prototype.forEach.call(document.querySelectorAll('.sndbtn'), function (b) {
+    b.onclick = function () { S.sound = !S.sound; save(); setSoundLabels(); if (S.sound) { ac(); tone(660, 0, 0.1, 'triangle', 0.12); } };
+  });
+  $('reroll').onclick = function () {
+    if (busy || over || drag || adOpen) return;
+    payOrAd(CFG.costReroll, function () { pieces = newSet(); renderTray(); popText('Nouvelles pièces', 22); });
+  };
+  $('watchAd').onclick = function () { showAd('rewarded', openRewards); };
+  window.addEventListener('resize', function () { measure(); if (!drag && !screens.game.hidden && pieces) renderTray(); });
+
+  openMenu();
+})();
+</script>
+
+</body>
+</html>
